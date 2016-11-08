@@ -145,10 +145,10 @@ def step(num = 1):
             setMotorWheelSpeed(6,1890)
             if getSensorValue(5) > 1750: # DMS too close; stop moving forward
                 break
-            if (getSensorValue(6) > 200 and getSensorValue(2) < 170) or (getSensorValue(2) < 100 and getSensorValue(2) > 20): # rightIR too close or leftIR too far
+            if (getSensorValue(6) > 215 and getSensorValue(2) < 170) or (getSensorValue(2) < 100 and getSensorValue(2) > 20): # rightIR too close or leftIR too far
                 setMotorWheelSpeed(7,420)
                 # n_time += 0.0075
-            if (getSensorValue(2) > 180 and getSensorValue(6) < 190) or (getSensorValue(1) < 100 and getSensorValue(1) > 20): # leftIR too close or rightIR too far
+            if (getSensorValue(2) > 180 and getSensorValue(6) < 190) or (getSensorValue(6) < 140 and getSensorValue(6) > 20): # leftIR too close or rightIR too far
                 setMotorWheelSpeed(6,1250)
                 # n_time += 0.0075
         k += 1
@@ -157,9 +157,9 @@ def step(num = 1):
 
 def turningRight():
     # n_time = time.time() + 0.95
-    cur_time = time.time() - init_time
+    cur_time = (time.time() - init_time)/100
     print cur_time
-    n_time = time.time() + 0.95 + cur_time * 0.01
+    n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -186,9 +186,9 @@ def turningRight():
 
 def turningLeft():
     # n_time = time.time() + 0.95
-    cur_time = time.time() - init_time
+    cur_time = (time.time() - init_time)/100
     print cur_time
-    n_time = time.time() + 0.95 + cur_time * 0.01
+    n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -226,11 +226,11 @@ def turningLeft():
     # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
 
 def turningAround():
-    cur_time = time.time() - init_time
+    cur_time = (time.time() - init_time)/100
     setMotorTargetSpeed(6,1676)
     setMotorTargetSpeed(7,1676)
 
-    time.sleep(1.4 + 0.01*cur_time)
+    time.sleep(1.4 + 0.001*cur_time)
 
     setMotorTargetSpeed(6,0)
     setMotorTargetSpeed(7,0)    
@@ -244,6 +244,235 @@ def turningAround():
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0)    
 
+def map_func(start_x, start_y, heading, map0, stack):
+    while len(stack) > 0:
+        
+        position = stack[0]
+        # print "Position: ",position
+        stack = stack[1:]
+        map0.setCost(position[0],position[1],0)
+
+        for direction in range(1,5):
+            addNeighbor = False
+            # rospy.loginfo('Checking direction %i \n', direction)
+            if direction % 4 == heading % 4:
+                if getSensorValue(5) > 1500:
+                    map0.setObstacle(position[0], position[1], 1, direction)
+                else:
+                    if map0.getNeighborCost(position[0], position[1], direction) == -1:
+                        addNeighbor = True                            
+            elif direction % 4 == (heading + 1) % 4:
+                if getSensorValue(6) > 20:
+                    map0.setObstacle(position[0], position[1], 1, direction)
+                else:
+                    if map0.getNeighborCost(position[0], position[1], direction) == -1:
+                        addNeighbor = True                            
+            elif direction % 4 == (heading -1) % 4:
+                if getSensorValue(2) > 20:
+                    map0.setObstacle(position[0], position[1], 1, direction)
+                else:
+                    if map0.getNeighborCost(position[0], position[1], direction) == -1:
+                        addNeighbor = True                            
+            
+            if addNeighbor:
+                map0.setNeighborCost(position[0], position[1], direction, 0)
+                neighbori = position[0]
+                neighborj = position[1]
+                if direction == 1: #North
+                    neighbori -= 1
+                elif direction == 2: #East
+                    neighborj += 1
+                elif direction == 3: #South
+                    neighbori += 1
+                elif direction == 4: #West
+                    neighborj -= 1
+                stack.insert(0,[neighbori, neighborj])
+
+        # move to next position
+        try:
+            new_pos = stack[0]
+            # print "new_pos: ",new_pos
+        except:
+            new_pos = position
+
+        # print "Creating queue"
+        q = Queue.Queue()
+        q.put([new_pos[0], new_pos[1], 0])
+        for x in range(8):
+            for y in range(8):
+                if map0.getCost(x,y) > -1:
+                    map0.setCost(x,y,99)
+        map0.setCost(new_pos[0],new_pos[1],0)
+
+        # print "Setting costs"
+        while map0.getCost(position[0],position[1]) == 99 and not q.empty():
+            current_node = q.get()
+            for direction in range(1,5):
+                if map0.getNeighborCost(current_node[0], current_node[1], direction) == 99:
+                    if not map0.getNeighborObstacle(current_node[0], current_node[1], direction):
+                        map0.setNeighborCost(current_node[0], current_node[1], direction, current_node[2] + 1)
+                        neighbori = current_node[0]
+                        neighborj = current_node[1]
+                        neighborCost = current_node[2] + 1
+                        if direction == 1: #North
+                            neighbori -= 1
+                        elif direction == 2: #East
+                            neighborj += 1
+                        elif direction == 3: #South
+                            neighbori += 1
+                        elif direction == 4: #West
+                            neighborj -= 1
+                        q.put([neighbori, neighborj, neighborCost])
+
+        # print "Creating path"
+        path = []
+        path.append([position[0], position[1]])
+        current_cost = map0.getCost(position[0], position[1])
+        # map0.printCostMap()
+
+        # print "Finding path"
+        while current_cost != 0:
+            curr_node = path[-1]
+            for direction in range(1,5):
+                # rospy.loginfo('Checking path %i \n', direction)
+                if not map0.getNeighborObstacle(curr_node[0],curr_node[1], direction):
+                    if map0.getNeighborCost(curr_node[0],curr_node[1], direction) < current_cost and map0.getNeighborCost(curr_node[0],curr_node[1], direction) >= 0:
+                        neighbori = curr_node[0]
+                        neighborj = curr_node[1]
+                        if direction == 1: #North
+                            neighbori -= 1
+                        elif direction == 2: #East
+                            neighborj += 1
+                        elif direction == 3: #South
+                            neighbori += 1
+                        elif direction == 4: #West
+                            neighborj -= 1
+                        path.append([neighbori, neighborj])
+                        current_cost = map0.getCost(neighbori, neighborj)
+                        break
+
+        # print path
+
+        robot_pos = [position[0], position[1]]
+
+        path = path[1:]
+        while robot_pos != [new_pos[0], new_pos[1]] and len(path) > 0:
+            k = 1
+            if heading == 3:
+                if path[0][0] > robot_pos[0]:
+                    while len(path) > 1 and path[1][0] > path[0][0]:
+                        path = path[1:]
+                        k += 1
+                    step(k)
+                    heading = 3
+                    robot_pos[0] += k
+                    path = path[1:]
+                elif path[0][0] < robot_pos[0]:
+                    turningAround()
+                    heading = 1
+                else:
+                    if path[0][1] > robot_pos[1]:
+                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                            while getSensorValue(DMS_port) < 1700:
+                                step(1)
+                        turningLeft()
+                        heading = 2
+                    elif path[0][1] < robot_pos[1]:
+                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                            while getSensorValue(DMS_port) < 1700:
+                                step(1)
+                        turningRight()
+                        heading = 4
+            elif heading == 4:
+                if path[0][0] > robot_pos[0]:
+                    if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                        while getSensorValue(DMS_port) < 1700:
+                            step(1)
+                    turningLeft()
+                    heading = 3
+                elif path[0][0] < robot_pos[0]:
+                    if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                        while getSensorValue(DMS_port) < 1700:
+                            step(1)
+                    turningRight()
+                    heading = 1
+                else:
+                    if path[0][1] > robot_pos[1]:
+                        turningAround()
+                        heading = 2
+                    elif path[0][1] < robot_pos[1]:
+                        while len(path) > 1 and path[1][1] < path[0][1]:
+                            path = path[1:]
+                            k += 1
+                        step(k)
+                        heading = 4
+                        robot_pos[1] -= k
+                        path = path[1:]
+            elif heading == 1:
+                if path[0][0] > robot_pos[0]:
+                    turningAround()
+                    heading = 3
+                elif path[0][0] < robot_pos[0]:
+                    while len(path) > 1 and path[1][0] < path[0][0]:
+                            path = path[1:]
+                            k += 1
+                    step(k)
+                    heading = 1
+                    robot_pos[0] -= k
+                    path = path[1:]
+                else:
+                    if path[0][1] > robot_pos[1]:
+                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                            while getSensorValue(DMS_port) < 1700:
+                                step(1)
+                        turningRight()
+                        heading = 2
+                    elif path[0][1] < robot_pos[1]:
+                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                            while getSensorValue(DMS_port) < 1700:
+                                step(1)
+                        turningLeft()
+                        heading = 4
+            elif heading == 2:
+                if path[0][0] > robot_pos[0]:
+                    if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                        while getSensorValue(DMS_port) < 1700:
+                            step(1)
+                    turningRight()
+                    heading = 3
+                elif path[0][0] < robot_pos[0]:
+                    if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
+                        while getSensorValue(DMS_port) < 1700:
+                            step(1)
+                    turningLeft()
+                    heading = 1
+                else:
+                    if path[0][1] > robot_pos[1]:
+                        while len(path) > 1 and path[1][1] > path[0][1]:
+                            path = path[1:]
+                            k += 1
+                        step(k)
+                        heading = 2
+                        robot_pos[1] += k
+                        path = path[1:]
+                    elif path[0][1] < robot_pos[1]:
+                        turningAround()
+                        heading = 4
+            # rospy.loginfo("New robot position: ")
+            # rospy.loginfo(robot_pos)
+
+        for x in range(8):
+            for y in range(8):
+                if map0.getCost(x,y) > 0:
+                    map0.setCost(x, y, 0)
+
+        map0.printCostMap()
+        map0.printObstacleMap()
+
+    rospy.loginfo("Final obstacle map")
+    map0.printObstacleMap()
+
+
 def shutdown(sig, stackframe):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0)
@@ -253,19 +482,28 @@ def stopmap(sig, stackframe):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0)
 
-    c = True
+    choice = input("What would you like to do?  1 to map, 2 to plan, 3 to exit\n")
 
-    while c:
-        # get new planning positions
-        startposx = input("What X coordinate do you want to start at? \n")
-        startposy = input("What Y coordinate do you want to start at? \n")
-        startheading = input("What heading do you want to start at? \n")
-        endposx = input("What X coordinate do you want to end at? \n")
-        endposy = input("What Y coordinate do you want to end at? \n")
-        endheading = input("What heading do you want to end at? \n")
-        follow_path(startposx, startposy, startheading, endposx, endposy, endheading, map0)
+    if choice == 1:
+        restartx = input("What X coordinate are you starting from?\n")
+        restarty = input("What Y coordinate are you starting from?\n")
+        restarth = input("What heading are you starting from?\n")
+        map_func(restartx, restarty, restarth, map0, stack)
 
-        c = input("Would you like to enter another path? \n")
+    elif choice == 2:
+        c = True
+
+        while c:
+            # get new planning positions
+            startposx = input("What X coordinate do you want to start at? \n")
+            startposy = input("What Y coordinate do you want to start at? \n")
+            startheading = input("What heading do you want to start at? \n")
+            endposx = input("What X coordinate do you want to end at? \n")
+            endposy = input("What Y coordinate do you want to end at? \n")
+            endheading = input("What heading do you want to end at? \n")
+            follow_path(startposx, startposy, startheading, endposx, endposy, endheading, map0)
+
+            c = input("Would you like to enter another path? \n")
 
     sys.exit(0)
 
@@ -504,234 +742,10 @@ if __name__ == "__main__":
         for x in range(8):
             for y in range(8):
                 map0.setCost(x, y, -1)
-
+    
         stack = [[0,0]]
-        while len(stack) > 0:
-            
-            position = stack[0]
-            # print "Position: ",position
-            stack = stack[1:]
-            map0.setCost(position[0],position[1],0)
 
-            for direction in range(1,5):
-                addNeighbor = False
-                # rospy.loginfo('Checking direction %i \n', direction)
-                if direction % 4 == heading % 4:
-                    if getSensorValue(5) > 1500:
-                        map0.setObstacle(position[0], position[1], 1, direction)
-                    else:
-                        if map0.getNeighborCost(position[0], position[1], direction) == -1:
-                            addNeighbor = True                            
-                elif direction % 4 == (heading + 1) % 4:
-                    if getSensorValue(6) > 20:
-                        map0.setObstacle(position[0], position[1], 1, direction)
-                    else:
-                        if map0.getNeighborCost(position[0], position[1], direction) == -1:
-                            addNeighbor = True                            
-                elif direction % 4 == (heading -1) % 4:
-                    if getSensorValue(2) > 20:
-                        map0.setObstacle(position[0], position[1], 1, direction)
-                    else:
-                        if map0.getNeighborCost(position[0], position[1], direction) == -1:
-                            addNeighbor = True                            
-                
-                if addNeighbor:
-                    map0.setNeighborCost(position[0], position[1], direction, 0)
-                    neighbori = position[0]
-                    neighborj = position[1]
-                    if direction == 1: #North
-                        neighbori -= 1
-                    elif direction == 2: #East
-                        neighborj += 1
-                    elif direction == 3: #South
-                        neighbori += 1
-                    elif direction == 4: #West
-                        neighborj -= 1
-                    stack.insert(0,[neighbori, neighborj])
-
-            # move to next position
-            try:
-                new_pos = stack[0]
-                # print "new_pos: ",new_pos
-            except:
-                new_pos = position
-
-            # print "Creating queue"
-            q = Queue.Queue()
-            q.put([new_pos[0], new_pos[1], 0])
-            for x in range(8):
-                for y in range(8):
-                    if map0.getCost(x,y) > -1:
-                        map0.setCost(x,y,99)
-            map0.setCost(new_pos[0],new_pos[1],0)
-
-            # print "Setting costs"
-            while map0.getCost(position[0],position[1]) == 99 and not q.empty():
-                current_node = q.get()
-                for direction in range(1,5):
-                    if map0.getNeighborCost(current_node[0], current_node[1], direction) == 99:
-                        if not map0.getNeighborObstacle(current_node[0], current_node[1], direction):
-                            map0.setNeighborCost(current_node[0], current_node[1], direction, current_node[2] + 1)
-                            neighbori = current_node[0]
-                            neighborj = current_node[1]
-                            neighborCost = current_node[2] + 1
-                            if direction == 1: #North
-                                neighbori -= 1
-                            elif direction == 2: #East
-                                neighborj += 1
-                            elif direction == 3: #South
-                                neighbori += 1
-                            elif direction == 4: #West
-                                neighborj -= 1
-                            q.put([neighbori, neighborj, neighborCost])
-
-            # print "Creating path"
-            path = []
-            path.append([position[0], position[1]])
-            current_cost = map0.getCost(position[0], position[1])
-            # map0.printCostMap()
-
-            # print "Finding path"
-            while current_cost != 0:
-                curr_node = path[-1]
-                for direction in range(1,5):
-                    # rospy.loginfo('Checking path %i \n', direction)
-                    if not map0.getNeighborObstacle(curr_node[0],curr_node[1], direction):
-                        if map0.getNeighborCost(curr_node[0],curr_node[1], direction) < current_cost and map0.getNeighborCost(curr_node[0],curr_node[1], direction) >= 0:
-                            neighbori = curr_node[0]
-                            neighborj = curr_node[1]
-                            if direction == 1: #North
-                                neighbori -= 1
-                            elif direction == 2: #East
-                                neighborj += 1
-                            elif direction == 3: #South
-                                neighbori += 1
-                            elif direction == 4: #West
-                                neighborj -= 1
-                            path.append([neighbori, neighborj])
-                            current_cost = map0.getCost(neighbori, neighborj)
-                            break
-
-            # print path
-
-            robot_pos = [position[0], position[1]]
-
-            path = path[1:]
-            while robot_pos != [new_pos[0], new_pos[1]] and len(path) > 0:
-                k = 1
-                if heading == 3:
-                    if path[0][0] > robot_pos[0]:
-                        while len(path) > 1 and path[1][0] > path[0][0]:
-                            path = path[1:]
-                            k += 1
-                        step(k)
-                        heading = 3
-                        robot_pos[0] += k
-                        path = path[1:]
-                    elif path[0][0] < robot_pos[0]:
-                        turningAround()
-                        heading = 1
-                    else:
-                        if path[0][1] > robot_pos[1]:
-                            if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                                while getSensorValue(DMS_port) < 1700:
-                                    step(1)
-                            turningLeft()
-                            heading = 2
-                        elif path[0][1] < robot_pos[1]:
-                            if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                                while getSensorValue(DMS_port) < 1700:
-                                    step(1)
-                            turningRight()
-                            heading = 4
-                elif heading == 4:
-                    if path[0][0] > robot_pos[0]:
-                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                            while getSensorValue(DMS_port) < 1700:
-                                step(1)
-                        turningLeft()
-                        heading = 3
-                    elif path[0][0] < robot_pos[0]:
-                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                            while getSensorValue(DMS_port) < 1700:
-                                step(1)
-                        turningRight()
-                        heading = 1
-                    else:
-                        if path[0][1] > robot_pos[1]:
-                            turningAround()
-                            heading = 2
-                        elif path[0][1] < robot_pos[1]:
-                            while len(path) > 1 and path[1][1] < path[0][1]:
-                                path = path[1:]
-                                k += 1
-                            step(k)
-                            heading = 4
-                            robot_pos[1] -= k
-                            path = path[1:]
-                elif heading == 1:
-                    if path[0][0] > robot_pos[0]:
-                        turningAround()
-                        heading = 3
-                    elif path[0][0] < robot_pos[0]:
-                        while len(path) > 1 and path[1][0] < path[0][0]:
-                                path = path[1:]
-                                k += 1
-                        step(k)
-                        heading = 1
-                        robot_pos[0] -= k
-                        path = path[1:]
-                    else:
-                        if path[0][1] > robot_pos[1]:
-                            if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                                while getSensorValue(DMS_port) < 1700:
-                                    step(1)
-                            turningRight()
-                            heading = 2
-                        elif path[0][1] < robot_pos[1]:
-                            if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                                while getSensorValue(DMS_port) < 1700:
-                                    step(1)
-                            turningLeft()
-                            heading = 4
-                elif heading == 2:
-                    if path[0][0] > robot_pos[0]:
-                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                            while getSensorValue(DMS_port) < 1700:
-                                step(1)
-                        turningRight()
-                        heading = 3
-                    elif path[0][0] < robot_pos[0]:
-                        if map0.getNeighborObstacle(robot_pos[0], robot_pos[1],heading):
-                            while getSensorValue(DMS_port) < 1700:
-                                step(1)
-                        turningLeft()
-                        heading = 1
-                    else:
-                        if path[0][1] > robot_pos[1]:
-                            while len(path) > 1 and path[1][1] > path[0][1]:
-                                path = path[1:]
-                                k += 1
-                            step(k)
-                            heading = 2
-                            robot_pos[1] += k
-                            path = path[1:]
-                        elif path[0][1] < robot_pos[1]:
-                            turningAround()
-                            heading = 4
-                # rospy.loginfo("New robot position: ")
-                # rospy.loginfo(robot_pos)
-
-            for x in range(8):
-                for y in range(8):
-                    if map0.getCost(x,y) > 0:
-                        map0.setCost(x, y, 0)
-
-            # map0.printCostMap()
-            map0.printObstacleMap()
-
-        rospy.loginfo("Final obstacle map")
-        map0.printObstacleMap()
+        map_func(0, 0, heading, map0, stack)
 
     else:
         map0 = EECSMap()
