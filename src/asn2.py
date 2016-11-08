@@ -141,9 +141,9 @@ def step(num = 1):
             n_time = time.time() + 1.85
         while time.time() < n_time:
             # rospy.loginfo(getSensorValue(5))
-            setMotorWheelSpeed(7,910)
-            setMotorWheelSpeed(6,1900)
-            if getSensorValue(5) > 1700: # DMS too close; stop moving forward
+            setMotorWheelSpeed(7,925)
+            setMotorWheelSpeed(6,1890)
+            if getSensorValue(5) > 1750: # DMS too close; stop moving forward
                 break
             if (getSensorValue(6) > 200 and getSensorValue(2) < 170) or (getSensorValue(2) < 100 and getSensorValue(2) > 20): # rightIR too close or leftIR too far
                 setMotorWheelSpeed(7,420)
@@ -156,7 +156,10 @@ def step(num = 1):
     setMotorWheelSpeed(7,0)
 
 def turningRight():
-    n_time = time.time() + 0.9
+    # n_time = time.time() + 0.95
+    cur_time = time.time() - init_time
+    print cur_time
+    n_time = time.time() + 0.95 + cur_time * 0.01
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -182,7 +185,10 @@ def turningRight():
     setMotorWheelSpeed(7,0) 
 
 def turningLeft():
-    n_time = time.time() + 1.3#0.9
+    # n_time = time.time() + 0.95
+    cur_time = time.time() - init_time
+    print cur_time
+    n_time = time.time() + 0.95 + cur_time * 0.01
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -193,13 +199,13 @@ def turningLeft():
         if gyro > 1060:
             gdiff = 0.3158*(gyro - 1050)
 
-            print "diff: ",diff
-            print "gyro diff: ",gdiff
+            # print "diff: ",diff
+            # print "gyro diff: ",gdiff
 
             total_turn += (gdiff*diff)
-        print "total turn: ",total_turn
+        # print "total turn: ",total_turn
 
-        rospy.loginfo("Gyro: %i\n",getSensorValue(1))
+        # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
         # rospy.loginfo(getSensorValue(5))
         setMotorWheelSpeed(7,1576)
         setMotorWheelSpeed(6,1576)
@@ -220,10 +226,11 @@ def turningLeft():
     # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
 
 def turningAround():
+    cur_time = time.time() - init_time
     setMotorTargetSpeed(6,1676)
     setMotorTargetSpeed(7,1676)
 
-    time.sleep(1.4)
+    time.sleep(1.4 + 0.01*cur_time)
 
     setMotorTargetSpeed(6,0)
     setMotorTargetSpeed(7,0)    
@@ -486,6 +493,7 @@ if __name__ == "__main__":
     
     if len(sys.argv) > 1 and int(sys.argv[1]) == 3:
         rospy.loginfo('Building a map of the world. \n')
+        init_time = time.time()
 
         map0 = EECSMap()
         map0.clearObstacleMap()
@@ -746,6 +754,7 @@ if __name__ == "__main__":
 
         step(i)
         if j > 0:
+            # turningRight()
             turningLeft()
         step(j)
     
