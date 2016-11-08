@@ -134,6 +134,7 @@ def walk():
 def step(num = 1):
     k = 0
     while k < num:
+        # step longer for single steps for accuracy purposes
         if num == 1:
             n_time = time.time() + 1.9
         else:
@@ -142,7 +143,7 @@ def step(num = 1):
             # rospy.loginfo(getSensorValue(5))
             setMotorWheelSpeed(7,910)
             setMotorWheelSpeed(6,1900)
-            if getSensorValue(5) > 1700: # DMS too close
+            if getSensorValue(5) > 1700: # DMS too close; stop moving forward
                 break
             if (getSensorValue(6) > 200 and getSensorValue(2) < 170) or (getSensorValue(2) < 100 and getSensorValue(2) > 20): # rightIR too close or leftIR too far
                 setMotorWheelSpeed(7,420)
@@ -180,16 +181,8 @@ def turningRight():
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0) 
 
-    # setMotorWheelSpeed(6,226)
-    # setMotorWheelSpeed(7,226)
-
-    # time.sleep(2.65)
-
-    # setMotorWheelSpeed(6,0)
-    # setMotorWheelSpeed(7,0)    
-
 def turningLeft():
-    n_time = time.time() + 0.9
+    n_time = time.time() + 1.3#0.9
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -200,13 +193,13 @@ def turningLeft():
         if gyro > 1060:
             gdiff = 0.3158*(gyro - 1050)
 
-            # print "diff: ",diff
-            # print "gyro diff: ",gdiff
+            print "diff: ",diff
+            print "gyro diff: ",gdiff
 
             total_turn += (gdiff*diff)
-        # print "total turn: ",total_turn
+        print "total turn: ",total_turn
 
-        # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
+        rospy.loginfo("Gyro: %i\n",getSensorValue(1))
         # rospy.loginfo(getSensorValue(5))
         setMotorWheelSpeed(7,1576)
         setMotorWheelSpeed(6,1576)
@@ -226,14 +219,6 @@ def turningLeft():
     # setMotorWheelSpeed(7,0)
     # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
 
-    # setMotorWheelSpeed(6,530)
-    # setMotorWheelSpeed(7,1475)
-
-    # time.sleep(0.75)
-
-    # setMotorWheelSpeed(6,0)
-    # setMotorWheelSpeed(7,0)   
-
 def turningAround():
     setMotorTargetSpeed(6,1676)
     setMotorTargetSpeed(7,1676)
@@ -243,6 +228,7 @@ def turningAround():
     setMotorTargetSpeed(6,0)
     setMotorTargetSpeed(7,0)    
 
+    # move backwards to the center of the tile
     setMotorTargetSpeed(6,910)
     setMotorTargetSpeed(7,1900)    
 
@@ -260,27 +246,36 @@ def stopmap(sig, stackframe):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0)
 
-    startposx = input("What X coordinate do you want to start at? \n")
-    startposy = input("What Y coordinate do you want to start at? \n")
-    startheading = input("What heading do you want to start at? \n")
-    endposx = input("What X coordinate do you want to end at? \n")
-    endposy = input("What Y coordinate do you want to end at? \n")
-    endheading = input("What heading do you want to end at? \n")
-    follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
+    c = True
+
+    while c:
+        # get new planning positions
+        startposx = input("What X coordinate do you want to start at? \n")
+        startposy = input("What Y coordinate do you want to start at? \n")
+        startheading = input("What heading do you want to start at? \n")
+        endposx = input("What X coordinate do you want to end at? \n")
+        endposy = input("What Y coordinate do you want to end at? \n")
+        endheading = input("What heading do you want to end at? \n")
+        follow_path(startposx, startposy, startheading, endposx, endposy, endheading, map0)
+
+        c = input("Would you like to enter another path? \n")
 
     sys.exit(0)
 
 
 def follow_path(si, sj, h, gi, gj, final_heading, map0):
+    # reset cost map
     for x in range(8):
             for y in range(8):
                 map0.setCost(x, y, 99)
 
+    # set cost of final position to 0
     map0.setCost(gi,gj,0)
     
     q = Queue.Queue()
     q.put([gi, gj, 0])
 
+    # 
     while map0.getCost(si,sj) == 99 and not q.empty():
         current_node = q.get()
         for direction in range(1,5):
@@ -774,13 +769,13 @@ if __name__ == "__main__":
 
         # turningAround()
         # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
-        startposx = input("What X coordinate do you want to start at? \n")
-        startposy = input("What Y coordinate do you want to start at? \n")
-        startheading = input("What heading do you want to start at? \n")
-        endposx = input("What X coordinate do you want to end at? \n")
-        endposy = input("What Y coordinate do you want to end at? \n")
-        endheading = input("What heading do you want to end at? \n")
-        follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
+        # startposx = input("What X coordinate do you want to start at? \n")
+        # startposy = input("What Y coordinate do you want to start at? \n")
+        # startheading = input("What heading do you want to start at? \n")
+        # endposx = input("What X coordinate do you want to end at? \n")
+        # endposy = input("What Y coordinate do you want to end at? \n")
+        # endheading = input("What heading do you want to end at? \n")
+        # follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
 
         # call function to get sensor value
         port = 1
