@@ -189,7 +189,7 @@ def turningRight():
     # setMotorWheelSpeed(7,0)    
 
 def turningLeft():
-    n_time = time.time() + 0.95
+    n_time = time.time() + 0.9
     prev_time = time.time()
     total_turn = 0
     while time.time() < n_time and total_turn < 90:
@@ -260,7 +260,18 @@ def stopmap(sig, stackframe):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0)
 
-def follow_path(si, sj, gi, gj, h, map0):
+    startposx = input("What X coordinate do you want to start at? \n")
+    startposy = input("What Y coordinate do you want to start at? \n")
+    startheading = input("What heading do you want to start at? \n")
+    endposx = input("What X coordinate do you want to end at? \n")
+    endposy = input("What Y coordinate do you want to end at? \n")
+    endheading = input("What heading do you want to end at? \n")
+    follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
+
+    sys.exit(0)
+
+
+def follow_path(si, sj, h, gi, gj, final_heading, map0):
     for x in range(8):
             for y in range(8):
                 map0.setCost(x, y, 99)
@@ -454,7 +465,7 @@ if __name__ == "__main__":
     rospy.init_node('example_node', anonymous=True)
     rospy.loginfo("Starting Group H Control Node...")
     signal.signal(signal.SIGINT, shutdown)
-    signal.signal(signal.SIGHUP, stopmap)
+    signal.signal(signal.SIGTSTP, stopmap)
     # control loop running at 10hz
     r = rospy.Rate(10) # 10hz
     
@@ -753,7 +764,7 @@ if __name__ == "__main__":
         gj = int(sys.argv[6])
         final_heading = int(sys.argv[7])
    
-        heading, robot_pos = follow_path(si, sj, gi, gj, h, map0)
+        heading, robot_pos = follow_path(si, sj, h, gi, gj, final_heading, map0)
 
         rospy.loginfo("Final robot position: ")
         rospy.loginfo(robot_pos)
@@ -769,7 +780,7 @@ if __name__ == "__main__":
         endposx = input("What X coordinate do you want to end at? \n")
         endposy = input("What Y coordinate do you want to end at? \n")
         endheading = input("What heading do you want to end at? \n")
-        follow_path(startposx,startposy, startheading, endposx, endposy, endheading)
+        follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
 
         # call function to get sensor value
         port = 1
