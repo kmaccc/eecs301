@@ -157,7 +157,7 @@ def step(num = 1):
 
 def turningRight():
     # n_time = time.time() + 0.95
-    cur_time = (time.time() - init_time)/100
+    cur_time = (time.time() - init_time)/500
     print cur_time
     n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
@@ -186,7 +186,7 @@ def turningRight():
 
 def turningLeft():
     # n_time = time.time() + 0.95
-    cur_time = (time.time() - init_time)/100
+    cur_time = (time.time() - init_time)/500
     print cur_time
     n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
@@ -226,7 +226,7 @@ def turningLeft():
     # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
 
 def turningAround():
-    cur_time = (time.time() - init_time)/100
+    cur_time = (time.time() - init_time)/500
     setMotorTargetSpeed(6,1676)
     setMotorTargetSpeed(7,1676)
 
