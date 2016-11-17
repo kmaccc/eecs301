@@ -276,48 +276,85 @@ if __name__ == "__main__":
     #     rospy.loginfo('Building a map of the world. \n')
     init_time = time.time()
 
-    # Train
-    trainingFile = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'ab')
-    # try:
-    #     #data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
-    #     data = pickle.load(trainingFile)
-    #     print data
-    #    print "Data successfully retrieved"
-    #except:
-    data = []
+    # # Train
+    # trainingFile = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'ab')
+    # # try:
+    # #     #data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    # #     data = pickle.load(trainingFile)
+    # #     print data
+    # #    print "Data successfully retrieved"
+    # #except:
+    # data = []
 
-    # initLeft, initRight, initDMS, LorR, finalLeft, finalRight, finalDMS, gyro
-    c = 1
-    while (c):
-        attributes = [0]*9
-        attributes[0] = getSensorValue(leftIR_port)
-        attributes[1] = getSensorValue(rightIR_port)
-        attributes[2] = getSensorValue(DMS_port)
+    # # initLeft, initRight, initDMS, LorR, finalLeft, finalRight, finalDMS, gyro
+    # c = 1
+    # while (c):
+    #     attributes = [0]*9
+    #     attributes[0] = getSensorValue(leftIR_port)
+    #     attributes[1] = getSensorValue(rightIR_port)
+    #     attributes[2] = getSensorValue(DMS_port)
 
-        gyro, direction = turningLeft()
-        # gyro, direction = turningRight()
+    #     # gyro, direction = turningLeft()
+    #     gyro, direction = turningRight()
 
-        attributes[3] = direction
-        attributes[4] = getSensorValue(leftIR_port)
-        attributes[5] = getSensorValue(rightIR_port)
-        attributes[6] = getSensorValue(DMS_port)
-        attributes[7] = gyro
+    #     attributes[3] = direction
+    #     attributes[4] = getSensorValue(leftIR_port)
+    #     attributes[5] = getSensorValue(rightIR_port)
+    #     attributes[6] = getSensorValue(DMS_port)
+    #     attributes[7] = gyro
 
-        attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
+    #     attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
 
-        print attributes
-        data.append(attributes)
-        trainingFile.write(str(attributes) + '; \n')
-        c = input("Would you like to record another turn? 1 to continue\n")
+    #     print attributes
+    #     data.append(attributes)
+    #     trainingFile.write(str(attributes) + '; \n')
+    #     c = input("Would you like to record another turn? 1 to continue\n")
 
-    #pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
-    #pickle.dump(data,trainingFile)
-    trainingFile.close()
+    # #pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    # #pickle.dump(data,trainingFile)
+    # trainingFile.close()
 
-    #shutdown()
+    # #shutdown()
 
     # Test
-    
+    train = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/train.txt')
+    test = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/test.txt')
+
+    train_data = []
+    test_data = []
+
+    for line in train:
+        splitstring = line.split(',')
+        for i in range(len(splitstring)):
+            splitstring[i] = float(splitstring[i])
+        train_data.append(splitstring)
+
+    print train_data
+
+    for line in test:
+        splitstring = line.split(',')
+        for i in range(len(splitstring)):
+            splitstring[i] = float(splitstring[i])
+        test_data.append(splitstring)
+
+    print test_data
+
+    labels = []
+    for test_pt in test_data:
+        error_vec = []
+        for train_pt in train_data:
+            err = 0
+            for val, tval in train_pt, test_pt:
+                err += tval - val
+            error_vec.append(err)
+            k += 1
+
+
+
+        potential_label = {-2:0, -1:0, 0:0, 1:0, 2:0}
+        for x in top_5:
+            potential_label[x[7]] += 1
+        labels.append(max(potential_label.values()))
 
     while not rospy.is_shutdown():
 
