@@ -126,8 +126,8 @@ def startPosition():
     setMotorTargetPositionCommand(4,311)
     setMotorTargetPositionCommand(5,723)
 
-def turningRight(direction):
-    direction = 1
+def turningRight():
+    direction = 'R'
     # n_time = time.time() + 0.95
     cur_time = (time.time() - init_time)/500
     print cur_time
@@ -156,10 +156,10 @@ def turningRight(direction):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0) 
 
-    return total_turn
+    return total_turn, direction
 
-def turningLeft(direction):
-    direction = -1
+def turningLeft():
+    direction = 'L'
     # n_time = time.time() + 0.95
     cur_time = (time.time() - init_time)/500
     print cur_time
@@ -188,7 +188,7 @@ def turningLeft(direction):
     setMotorWheelSpeed(6,0)
     setMotorWheelSpeed(7,0) 
 
-    return total_turn
+    return total_turn, direction
 
 def turningAround():
     cur_time = (time.time() - init_time)/500
@@ -276,68 +276,15 @@ if __name__ == "__main__":
     #     rospy.loginfo('Building a map of the world. \n')
     init_time = time.time()
 
-    #     map0 = EECSMap()
-    #     map0.clearObstacleMap()
-    #     map0.printObstacleMap() # DEBUG
-
-    #     heading = 3
-
-    #     for x in range(8):
-    #         for y in range(8):
-    #             map0.setCost(x, y, -1)
-    
-    #     stack = [[0,0]]
-
-    #     map_func(0, 0, heading, map0, stack)
-
-    # else:
-    #     map0 = EECSMap()
-    #     map0.printObstacleMap()
-
-    # setMotorMode(7,1)
-    # setMotorMode(6,1)
-
-    # i = 0
-    # j = 0
-
-    # # Localization
-    # if len(sys.argv) > 1 and int(sys.argv[1]) == 1:
-    #     rospy.loginfo('Walking to destination. \n')
-    #     i = int(sys.argv[2])
-    #     j = int(sys.argv[3])
-
-    #     rospy.loginfo("i: %i  \n", i)
-    #     rospy.loginfo("j: %i  \n", j)
-
-    #     step(i)
-    #     if j > 0:
-    #         # turningRight()
-    #         turningLeft()
-    #     step(j)
-    
-    # # Planning
-    # if len(sys.argv) > 1 and int(sys.argv[1]) == 2:
-    #     rospy.loginfo('Following path to destination. \n')
-    #     si = int(sys.argv[2])
-    #     sj = int(sys.argv[3])
-    #     h = int(sys.argv[4])
-    #     gi = int(sys.argv[5])
-    #     gj = int(sys.argv[6])
-    #     final_heading = int(sys.argv[7])
-   
-    #     heading, robot_pos = follow_path(si, sj, h, gi, gj, final_heading, map0)
-
-    #     rospy.loginfo("Final robot position: ")
-    #     rospy.loginfo(robot_pos)
-    #     rospy.loginfo("Final robot heading: %i\n",heading)
-
-    # trainingFile = open('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'r+')
-    try:
-        data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
-        print data
-        print "Data successfully retrieved"
-    except:
-        data = []
+    # Train
+    trainingFile = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'ab')
+    # try:
+    #     #data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    #     data = pickle.load(trainingFile)
+    #     print data
+    #    print "Data successfully retrieved"
+    #except:
+    data = []
 
     # initLeft, initRight, initDMS, LorR, finalLeft, finalRight, finalDMS, gyro
     c = 1
@@ -346,10 +293,9 @@ if __name__ == "__main__":
         attributes[0] = getSensorValue(leftIR_port)
         attributes[1] = getSensorValue(rightIR_port)
         attributes[2] = getSensorValue(DMS_port)
-        direction = 0 # -1 for left turn, 1 for right turn
 
-        gyro = turningLeft(direction)
-        # gyro = turningRight(direction)
+        gyro, direction = turningLeft()
+        # gyro, direction = turningRight()
 
         attributes[3] = direction
         attributes[4] = getSensorValue(leftIR_port)
@@ -360,17 +306,18 @@ if __name__ == "__main__":
         attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
 
         print attributes
-        print data + attributes
-        data += attributes
-
+        data.append(attributes)
+        trainingFile.write(str(attributes) + '; \n')
         c = input("Would you like to record another turn? 1 to continue\n")
 
-    pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    #pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    #pickle.dump(data,trainingFile)
+    trainingFile.close()
 
-    # trainingFile.close()
+    #shutdown()
 
-    shutdown()
-
+    # Test
+    
 
     while not rospy.is_shutdown():
 
