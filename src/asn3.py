@@ -9,6 +9,8 @@ import sys
 import time
 import Queue
 import pickle
+import math
+import operator
 
 # -----------SERVICE DEFINITION-----------
 # allcmd REQUEST DATA
@@ -130,7 +132,7 @@ def turningRight():
     direction = 'R'
     # n_time = time.time() + 0.95
     cur_time = (time.time() - init_time)/500
-    print cur_time
+    # print cur_time
     n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
     total_turn = 0
@@ -162,7 +164,7 @@ def turningLeft():
     direction = 'L'
     # n_time = time.time() + 0.95
     cur_time = (time.time() - init_time)/500
-    print cur_time
+    # print cur_time
     n_time = time.time() + 0.93 + cur_time * 0.001
     prev_time = time.time()
     total_turn = 0
@@ -214,41 +216,11 @@ def shutdown(sig, stackframe):
     setMotorWheelSpeed(7,0)
     sys.exit(0)
 
-def stopmap(sig, stackframe):
-    setMotorWheelSpeed(6,0)
-    setMotorWheelSpeed(7,0)
-
-    choice = input("What would you like to do?  1 to map, 2 to plan, 3 to exit\n")
-
-    if choice == 1:
-        restartx = input("What X coordinate are you starting from?\n")
-        restarty = input("What Y coordinate are you starting from?\n")
-        restarth = input("What heading are you starting from?\n")
-        map_func(restartx, restarty, restarth, map0, stack)
-
-    elif choice == 2:
-        c = True
-
-        while c:
-            # get new planning positions
-            startposx = input("What X coordinate do you want to start at? \n")
-            startposy = input("What Y coordinate do you want to start at? \n")
-            startheading = input("What heading do you want to start at? \n")
-            endposx = input("What X coordinate do you want to end at? \n")
-            endposy = input("What Y coordinate do you want to end at? \n")
-            endheading = input("What heading do you want to end at? \n")
-            follow_path(startposx, startposy, startheading, endposx, endposy, endheading, map0)
-
-            c = input("Would you like to enter another path? \n")
-
-    sys.exit(0)
-
 # Main function
 if __name__ == "__main__":
     rospy.init_node('example_node', anonymous=True)
     rospy.loginfo("Starting Group H Control Node...")
     signal.signal(signal.SIGINT, shutdown)
-    signal.signal(signal.SIGTSTP, stopmap)
     # control loop running at 10hz
     r = rospy.Rate(10) # 10hz
     
@@ -268,129 +240,175 @@ if __name__ == "__main__":
     # resetting motor positions before starting movement
     startPosition()
 
-    k = 0    
+    # Number of nearest neighbors
+    k = 3
 
     # initial = getSensorValue(1)
     
-    # if len(sys.argv) > 1 and int(sys.argv[1]) == 3:
-    #     rospy.loginfo('Building a map of the world. \n')
     init_time = time.time()
 
-    # # Train
-    # trainingFile = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'ab')
-    # # try:
-    # #     #data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
-    # #     data = pickle.load(trainingFile)
-    # #     print data
-    # #    print "Data successfully retrieved"
-    # #except:
-    # data = []
+    # Train
+    trainingFile = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/trainingData.txt', 'ab')
+    # try:
+    #     #data = pickle.load('/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    #     data = pickle.load(trainingFile)
+    #     print data
+    #    print "Data successfully retrieved"
+    #except:
+    data = []
 
-    # # initLeft, initRight, initDMS, LorR, finalLeft, finalRight, finalDMS, gyro
-    # c = 1
-    # while (c):
-    #     attributes = [0]*9
-    #     attributes[0] = getSensorValue(leftIR_port)
-    #     attributes[1] = getSensorValue(rightIR_port)
-    #     attributes[2] = getSensorValue(DMS_port)
+    # initLeft, initRight, initDMS, LorR, finalLeft, finalRight, finalDMS, gyro
+    c = 1
+    while (c):
+        attributes = [0]*9
+        attributes[0] = getSensorValue(leftIR_port)
+        attributes[1] = getSensorValue(rightIR_port)
+        attributes[2] = getSensorValue(DMS_port)
 
-    #     # gyro, direction = turningLeft()
+        gyro, direction = turningLeft()
+        # gyro, direction = turningRight()
+
+        attributes[3] = direction
+        attributes[4] = getSensorValue(leftIR_port)
+        attributes[5] = getSensorValue(rightIR_port)
+        attributes[6] = getSensorValue(DMS_port)
+        attributes[7] = gyro
+
+        attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
+
+        print attributes
+        data.append(attributes)
+        trainingFile.write(str(attributes) + '; \n')
+        c = input("Would you like to record another turn? 1 to continue\n")
+
+    #pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
+    #pickle.dump(data,trainingFile)
+    trainingFile.close()
+
+    #shutdown()
+
+    # # Test
+    # train = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/train.txt')
+    # test = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/test.txt')
+
+    # train_data = []
+    # test_data = []
+
+    # for line in train:
+    #     splitstring = line.split(',')
+    #     for i in range(len(splitstring)):
+    #         splitstring[i] = float(splitstring[i])
+    #     train_data.append(splitstring)
+
+    # print train_data
+
+    # for line in test:
+    #     splitstring = line.split(',')
+    #     for i in range(len(splitstring)):
+    #         splitstring[i] = float(splitstring[i])
+    #     test_data.append(splitstring)
+
+    # print test_data
+
+    # labels = []
+    # for test_pt in test_data:
+    #     dist_vec = []
+    #     for train_pt in train_data:
+    #         err = 0
+    #         for i in range(len(train_pt)-1):
+    #             err += (test_pt[i] - train_pt[i])**2
+    #         dist_vec.append((train_pt,math.sqrt(err)))
+    #     dist_vec.sort(key=operator.itemgetter(1))
+        
+    #     top_neighbors = []
+    #     for x in range(k):
+    #         top_neighbors.append(dist_vec[x][0])
+
+    #     potential_label = {'-2':0, '-1':0, '0':0, '1':0, '2':0}
+
+    #     labelSum = 0
+    #     for x in top_neighbors:
+    #         labelSum += x[-1]
+    #         # potential_label[x[-1]] += 1
+    #     # print potential_label
+
+    #     labels.append(round(labelSum/k)) 
+
+    # print labels
+
+    # correct = 0
+    # i = 0
+    # for test_pt in test_data:
+    #     if test_pt[-1] == labels[i]:
+    #         correct += 1
+    #     i += 1
+
+    # print (correct/float(len(test_data)))*100.0
+
+    # # Demo
+    # train = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/train.txt')
+
+    # train_data = []
+    # test_data = []
+
+    # for line in train:
+    #     splitstring = line.split(',')
+    #     for i in range(len(splitstring)):
+    #         splitstring[i] = float(splitstring[i])
+    #     train_data.append(splitstring)
+
+    # attributes = [0]*9
+    # attributes[0] = getSensorValue(leftIR_port)
+    # attributes[1] = getSensorValue(rightIR_port)
+    # attributes[2] = getSensorValue(DMS_port)
+
+    # if len(sys.argv) > 1 and sys.argv[1] == 'L':
+    #     gyro, direction = turningLeft()
+    # else:
     #     gyro, direction = turningRight()
 
-    #     attributes[3] = direction
-    #     attributes[4] = getSensorValue(leftIR_port)
-    #     attributes[5] = getSensorValue(rightIR_port)
-    #     attributes[6] = getSensorValue(DMS_port)
-    #     attributes[7] = gyro
+    # if direction == 'L':
+    #     attributes[3] = -100
+    # else:
+    #     attributes[3] = 100
+    # attributes[4] = getSensorValue(leftIR_port)
+    # attributes[5] = getSensorValue(rightIR_port)
+    # attributes[6] = getSensorValue(DMS_port)
+    # attributes[7] = gyro
 
-    #     attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
+    # # attributes[8] = input("How was that turn?  -2 for very underturned, 0 for correct, 2 for very overturned\n")
 
-    #     print attributes
-    #     data.append(attributes)
-    #     trainingFile.write(str(attributes) + '; \n')
-    #     c = input("Would you like to record another turn? 1 to continue\n")
+    # test_pt = attributes
 
-    # #pickle.dump(data,'/home/ros_workspace/src/eecs301_grp_H/src/trainingData.pkl')
-    # #pickle.dump(data,trainingFile)
-    # trainingFile.close()
+    # dist_vec = []
+    # for train_pt in train_data:
+    #     err = 0
+    #     for i in range(len(train_pt)-1):
+    #         err += (test_pt[i] - train_pt[i])**2
+    #     dist_vec.append((train_pt,math.sqrt(err)))
+    # dist_vec.sort(key=operator.itemgetter(1))
+    
+    # top_neighbors = []
+    # for x in range(k):
+    #     top_neighbors.append(dist_vec[x][0])
 
-    # #shutdown()
+    # potential_label = {'-2':0, '-1':0, '0':0, '1':0, '2':0}
 
-    # Test
-    train = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/train.txt')
-    test = open('/home/rosuser/ros_workspace/src/eecs301_grp_H/src/test.txt')
+    # labelSum = 0
+    # for x in top_neighbors:
+    #     labelSum += x[-1]
+    #     # potential_label[x[-1]] += 1
+    # # print potential_label
 
-    train_data = []
-    test_data = []
+    # print round(labelSum/k)
 
-    for line in train:
-        splitstring = line.split(',')
-        for i in range(len(splitstring)):
-            splitstring[i] = float(splitstring[i])
-        train_data.append(splitstring)
-
-    print train_data
-
-    for line in test:
-        splitstring = line.split(',')
-        for i in range(len(splitstring)):
-            splitstring[i] = float(splitstring[i])
-        test_data.append(splitstring)
-
-    print test_data
-
-    labels = []
-    for test_pt in test_data:
-        error_vec = []
-        for train_pt in train_data:
-            err = 0
-            for val, tval in train_pt, test_pt:
-                err += tval - val
-            error_vec.append(err)
-            k += 1
-
-
-
-        potential_label = {-2:0, -1:0, 0:0, 1:0, 2:0}
-        for x in top_5:
-            potential_label[x[7]] += 1
-        labels.append(max(potential_label.values()))
 
     while not rospy.is_shutdown():
 
-        # turningAround()
-        # rospy.loginfo("Gyro: %i\n",getSensorValue(1))
-        # startposx = input("What X coordinate do you want to start at? \n")
-        # startposy = input("What Y coordinate do you want to start at? \n")
-        # startheading = input("What heading do you want to start at? \n")
-        # endposx = input("What X coordinate do you want to end at? \n")
-        # endposy = input("What Y coordinate do you want to end at? \n")
-        # endheading = input("What heading do you want to end at? \n")
-        # follow_path(startposx,startposy, startheading, endposx, endposy, endheading, map0)
-
-        # call function to get sensor value
+         # call function to get sensor value
         port = 1
         # sensor_reading = getSensorValue(port)
         # rospy.loginfo("Sensor value at port %d: %f", port, sensor_reading)
         	
-        # leftIR = getSensorValue(leftIR_port)
-        # rightIR = getSensorValue(rightIR_port)
-        # DMS = getSensorValue(DMS_port)
-
-        # rospy.loginfo("Left IR value: %i  \n", leftIR)
-        # rospy.loginfo("Right IR value: %i \n", rightIR)
-        # rospy.loginfo("DMS value: %i \n", DMS)
-
-        # rospy.loginfo("Right wheel speed: %i  \n", getMotorWheelSpeed(6))
-        # rospy.loginfo("Left wheel speed: %i  \n", getMotorWheelSpeed(7))
-
-        # rospy.loginfo("Motor 1 position: %i", getMotorPositionCommand(1))
-        # rospy.loginfo("Motor 2 position: %i", getMotorPositionCommand(2))
-        # rospy.loginfo("Motor 3 position: %i", getMotorPositionCommand(3))
-        # rospy.loginfo("Motor 4 position: %i", getMotorPositionCommand(4))
-        # rospy.loginfo("Motor 5 position: %i", getMotorPositionCommand(5))
-        # rospy.loginfo("Motor 6 position: %i", getMotorPositionCommand(6))
-        # rospy.loginfo("Motor 7 position: %i", getMotorPositionCommand(7))
-
         # sleep to enforce loop rate
         r.sleep()
